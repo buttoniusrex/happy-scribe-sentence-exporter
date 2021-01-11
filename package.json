@@ -1,0 +1,23 @@
+{
+  "name": "happyscribe-to-anki",
+  "version": "1.0.0",
+  "description": "Utility for creating Anki-compatible CSV files from Happyscribe transcripts",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/minceontoast/happyscribe-to-anki.git"
+  },
+  "keywords": [
+    "happyscribe",
+    "anki"
+  ],
+  "author": "Christopher Button",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/minceontoast/happyscribe-to-anki/issues"
+  },
+  "homepage": "https://github.com/minceontoast/happyscribe-to-anki#readme"
+}
