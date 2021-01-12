@@ -4,7 +4,7 @@
   "description": "Utility for creating Anki-compatible CSV files from Happyscribe transcripts",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
   "repository": {
     "type": "git",
@@ -19,5 +19,8 @@
   "bugs": {
     "url": "https://github.com/minceontoast/happyscribe-to-anki/issues"
   },
-  "homepage": "https://github.com/minceontoast/happyscribe-to-anki#readme"
+  "homepage": "https://github.com/minceontoast/happyscribe-to-anki#readme",
+  "dependencies": {
+    "axios": "^0.21.1"
+  }
 }
