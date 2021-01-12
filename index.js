@@ -3,11 +3,22 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const extract = require('extract-zip');
+const stripBom = require('strip-bom');
 
 const hostname = 'www.happyscribe.com';
 const port = 443;
 const outputDir = `${__dirname}/output`;
+const outputDirJSON = `${outputDir}/json`;
+
 const outputFile = 'output.zip'
+
+const sentences = [];
+
+// End points
+let transcriptsUrl = 'https://www.happyscribe.com/api/v1/transcriptions';
+let exportsUrl = 'https://www.happyscribe.com/api/v1/exports';
+
+let transcriptIds = [];
 
 let options = {
     host: hostname,
@@ -15,36 +26,54 @@ let options = {
     headers: { 'Authorization': 'Bearer UuyDDy9FT8CD8IB2uXGQWAtt' }
 };
 
-const getTranscriptMetadataAll = () => {
-    options.path = '/api/v1/transcriptions'
-    return callApi(options);
+const getTranscriptMetadataAll = (endpoint) => {
+    return axios.get(endpoint, {
+        headers: {
+            'Authorization': 'Bearer UuyDDy9FT8CD8IB2uXGQWAtt',
+        }
+    })
 };
 
-const getTranscriptMetadata = () => {
-    return getTranscriptMetadataAll().then(value => {
-        const data = JSON.parse(value);
-        const transcripts = data.results.map(element => {
-            return element.id;
-        });
-        return transcripts;
+const getTranscriptMetadata = (endpoint) => {
+    return getTranscriptMetadataAll(endpoint).then(value => {
+
+
+
+        return new Promise((resolve, reject) => {
+            if (value.data.results.length > 0) {
+                console.log("Retrieving transcripts metadata...")
+
+                const ids = value.data.results.map(element => {
+                    return element.id;
+                });
+                transcriptIds.push(ids);
+                getTranscriptMetadata(value.data._links.next.url)
+            } else {
+                let finalIds = [];
+
+                // Flatten the array
+                transcriptIds.map((arr, idx) => {
+                    arr.forEach(e => {
+                        finalIds.push(e);
+                    })
+                })
+                resolve(finalIds)
+            }
+        })
     });
 };
 
-const createExport = () => {
+const createExport = ids => {
     const body = {
         "export": {
             "format": "json",
-            "transcription_ids": [
-                "3797fa9832a24a389e43a016e91396ee",
-                "ebed7524dce043a096c38b89e4258a08",
-                "55332ae619a84ebca79eb2ae1cd7c3ad"
-            ]
+            "transcription_ids": ids
         }
     }
 
     console.log("Creating export...");
 
-    return axios.post('https://www.happyscribe.com/api/v1/exports', body, {
+    return axios.post(exportsUrl, body, {
         headers: {
             'Authorization': 'Bearer UuyDDy9FT8CD8IB2uXGQWAtt',
             'Content-Type': 'application/json'
@@ -61,7 +90,7 @@ const createExport = () => {
 const getExport = exportID => {
     console.log("Retrieving export...");
 
-    return axios.get('https://www.happyscribe.com/api/v1/exports/' + exportID, {
+    return axios.get(exportsUrl + '/' + exportID, {
         headers: {
             'Authorization': 'Bearer UuyDDy9FT8CD8IB2uXGQWAtt',
         }
@@ -82,7 +111,7 @@ const getExport = exportID => {
 
 const getTranscripts = url => {
     console.log('Downloading transcripts...')
-    url = 'https://www.happyscribe.com/rails/active_storage/blobs/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBMmZodkE9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--c528af207c564b6eb490eeaf6ecaa08c299c41ad/export-1610438102.zip?disposition=attachment';
+    // url = 'https://www.happyscribe.com/rails/active_storage/blobs/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBMmZodkE9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--c528af207c564b6eb490eeaf6ecaa08c299c41ad/export-1610438102.zip?disposition=attachment';
 
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir);
@@ -119,54 +148,66 @@ const extractTranscripts = filePath => {
     const target = outputDir
     return new Promise((resolve, reject) => {
         try {
-            extract(filePath, { dir: target })
+            extract(filePath, { dir: outputDirJSON })
             console.log('Extraction complete: ' + target + "\n");
             resolve(true);
-          } catch (err) {
+        } catch (err) {
             reject(err);
-          }
+        }
     });
 };
 
-const buildSentences = () => {
-
-}
-
-const callApi = (options) => {
+const readTranscripts = () => {
     return new Promise((resolve, reject) => {
-        https.get(options, (response) => {
-            let payload = '';
-            response.on('data', function (data) {
-                payload += data.toString();
-            });
-            response.on('end', function () {
-                try {
-                    t = JSON.parse(payload);
-                    if (t.error === 'Unauthorized') reject('ERROR: Invalid API token. Exiting.');
-                } catch (error) {
-                    reject('ERROR: Failed to parse API response. Exiting.');
-                }
-                resolve(payload);
-            });
-        }).on('error', (error) => {
-            reject(error);
-        });
-    });
-};
+        fs.readdir(outputDirJSON, (err, files) => {
+            if (err)
+                reject(err);
+            else {
+                console.log("Files " + files)
+                files.forEach(file => {
 
-// getTranscriptMetadata().then(val => {
-//     console.log("Output: " + val)
-//     exportTranscript(val);
-// });
+                    console.log('Reading ' + file + '...');
 
-// createExport().then(exportID => {
-getExport('2618e59a-035f-4927-afa7-64a9585bbf50')
-.then(url => {
-    getTranscripts(url)
-    .then(filePath => {
-        extractTranscripts(filePath).then(res => {
-            console.log("alright we ready")
+                    let data = JSON.parse(stripBom(fs.readFileSync(outputDirJSON + '/' + file, "utf8")));
+
+                    // Access the individual words and construct the full sentence
+                    data.forEach(d => {
+                        let sentence = '';
+                        d.words.forEach(w => {
+                            sentence += w.text;
+                        })
+                        sentences.push(sentence);
+                    })
+                })
+                resolve(sentences);
+            }
         })
     })
-});
-// })
+}
+
+// 31990abe-249d-43b1-b85e-cb466b9e1759
+// getExport('31990abe-249d-43b1-b85e-cb466b9e1759')
+getTranscriptMetadata(transcriptsUrl)
+    .then(ids => {
+        console.log(ids)
+        return createExport(ids)
+    })
+    .then(exportID => {
+        console.log("Export id: " + exportId)
+        return getExport(exportID)
+    })
+    .then(url => {
+        console.log('URL: ' + url)
+        getTranscripts(url)
+    })
+    .then(filePath => {
+        return extractTranscripts(filePath)
+    })
+    .then(res => {
+        return readTranscripts()
+    })
+    .then(res => {
+        console.log(sentences);
+    });
+
+
