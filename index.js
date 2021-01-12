@@ -1,13 +1,14 @@
 const https = require('https');
 const axios = require('axios');
-const Fs = require('fs')
+const fs = require('fs');
+const path = require('path');
+const extract = require('extract-zip');
 
-const Path = require('path')
 const hostname = 'www.happyscribe.com';
 const port = 443;
-const outputDir = 'output';
+const outputDir = `${__dirname}/output`;
+const outputFile = 'output.zip'
 
-// let transcripts = '';
 let options = {
     host: hostname,
     port: port,
@@ -41,7 +42,7 @@ const createExport = () => {
         }
     }
 
-    console.log("Creating export...")
+    console.log("Creating export...");
 
     return axios.post('https://www.happyscribe.com/api/v1/exports', body, {
         headers: {
@@ -49,42 +50,46 @@ const createExport = () => {
             'Content-Type': 'application/json'
         }
     }).then(res => {
-        console.log('Created export: ' + res.data.id);
+        console.log('Created export: ' + res.data.id + '\n');
         return res.data.id;
     }).catch(err => {
         console.log('Status code: ' + err)
         console.log('Failed to create export');
     })
-}
+};
 
 const getExport = exportID => {
+    console.log("Retrieving export...");
+
     return axios.get('https://www.happyscribe.com/api/v1/exports/' + exportID, {
         headers: {
             'Authorization': 'Bearer UuyDDy9FT8CD8IB2uXGQWAtt',
         }
     }).then(res => {
-        if (res.data.download_link !== undefined) {
-            console.log(res.status)
-            console.log('Retrieved export: ' + res.data.download_link);
-            return res.data.download_link;
-        } else {
-            getExport(exportID);
-        }
+        return new Promise((resolve, reject) => {
+            if (res.data.download_link !== undefined) {
+                console.log('Retrieved export: ' + res.data.download_link + '\n');
+                resolve(res.data.download_link);
+            } else {
+                getExport(exportID);
+            }
+        })
     }).catch(err => {
         console.log('Status code: ' + err)
         console.log('Failed to retrieve export');
     })
-}
+};
 
 const getTranscripts = url => {
+    console.log('Downloading transcripts...')
     url = 'https://www.happyscribe.com/rails/active_storage/blobs/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBMmZodkE9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--c528af207c564b6eb490eeaf6ecaa08c299c41ad/export-1610438102.zip?disposition=attachment';
 
-    if (!Fs.existsSync(outputDir)){
-        Fs.mkdirSync(outputDir);
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir);
     }
 
-    const path = Path.resolve(__dirname, outputDir, 'output.zip')
-    const writer = Fs.createWriteStream(path)
+    const outputPath = path.resolve(outputDir, outputFile)
+    const writer = fs.createWriteStream(outputPath)
 
     return axios({
         url,
@@ -101,14 +106,29 @@ const getTranscripts = url => {
             });
             writer.on('close', () => {
                 if (!error) {
-                    resolve(true);
+                    console.log('Downloaded transcripts: ' + outputPath + '\n')
+                    resolve(outputPath);
                 }
-                //no need to call the reject here, as it will have been called in the
-                //'error' stream;
             });
         });
     })
+};
 
+const extractTranscripts = filePath => {
+    console.log('Extracting transcripts...')
+    const target = outputDir
+    return new Promise((resolve, reject) => {
+        try {
+            extract(filePath, { dir: target })
+            console.log('Extraction complete: ' + target + "\n");
+            resolve(true);
+          } catch (err) {
+            reject(err);
+          }
+    });
+};
+
+const buildSentences = () => {
 
 }
 
@@ -139,8 +159,14 @@ const callApi = (options) => {
 //     exportTranscript(val);
 // });
 
-createExport().then(exportID => {
-    getExport(exportID).then(url => {
-        getTranscripts(url)
-    });
-})
+// createExport().then(exportID => {
+getExport('2618e59a-035f-4927-afa7-64a9585bbf50')
+.then(url => {
+    getTranscripts(url)
+    .then(filePath => {
+        extractTranscripts(filePath).then(res => {
+            console.log("alright we ready")
+        })
+    })
+});
+// })

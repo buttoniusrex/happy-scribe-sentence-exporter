@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/minceontoast/happyscribe-to-anki#readme",
   "dependencies": {
-    "axios": "^0.21.1"
+    "axios": "^0.21.1",
+    "extract-zip": "^2.0.1"
   }
 }
