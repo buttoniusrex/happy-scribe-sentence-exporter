@@ -1,4 +1,3 @@
-const https = require('https');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
@@ -9,10 +8,11 @@ const hostname = 'www.happyscribe.com';
 const port = 443;
 const outputDir = `${__dirname}/output`;
 const outputDirJSON = `${outputDir}/json`;
-
 const outputFile = 'output.zip'
-
 const sentences = [];
+
+let displayTranscriptIDsMessage = true;
+fileNameTranscriptIDs = 'transcript_ids.json'
 
 // End points
 let transcriptsUrl = 'https://www.happyscribe.com/api/v1/transcriptions';
@@ -20,47 +20,57 @@ let exportsUrl = 'https://www.happyscribe.com/api/v1/exports';
 
 let transcriptIds = [];
 
-let options = {
-    host: hostname,
-    port: port,
-    headers: { 'Authorization': 'Bearer UuyDDy9FT8CD8IB2uXGQWAtt' }
-};
-
-const getTranscriptMetadataAll = (endpoint) => {
-    return axios.get(endpoint, {
+const getTranscriptMetadata = (url) => {
+    return axios.get(url, {
         headers: {
             'Authorization': 'Bearer UuyDDy9FT8CD8IB2uXGQWAtt',
         }
     })
 };
 
-const getTranscriptMetadata = (endpoint) => {
-    return getTranscriptMetadataAll(endpoint).then(value => {
-
-
+const getTranscriptIds = url => {
+    return getTranscriptMetadata(url).then(value => {
 
         return new Promise((resolve, reject) => {
-            if (value.data.results.length > 0) {
-                console.log("Retrieving transcripts metadata...")
 
+            if (displayTranscriptIDsMessage) {
+                console.log("Retrieving transcript IDs...")
+                displayTranscriptIDsMessage = false;
+            }
+
+            if (value.data.results.length > 0) {
                 const ids = value.data.results.map(element => {
                     return element.id;
                 });
                 transcriptIds.push(ids);
-                getTranscriptMetadata(value.data._links.next.url)
-            } else {
-                let finalIds = [];
 
-                // Flatten the array
-                transcriptIds.map((arr, idx) => {
-                    arr.forEach(e => {
-                        finalIds.push(e);
+                return new Promise((resolve, reject) => {
+                    getTranscriptIds(value.data._links.next.url).then(res => {
+                        resolve();
                     })
                 })
-                resolve(finalIds)
             }
+            let finalIds = [];
+
+            // Flatten the array
+            transcriptIds.map((arr, idx) => {
+                arr.forEach(e => {
+                    finalIds.push(e);
+                })
+            })
+            console.log("Completed.\n");
+            let data = JSON.stringify(finalIds);
+            try {
+                fs.writeFileSync(fileNameTranscriptIDs, data);
+                console.log("Re-run application to get export ID.")
+            } catch (error) {
+
+            }
+
+            resolve(finalIds);
         })
-    });
+
+    })
 };
 
 const createExport = ids => {
@@ -79,11 +89,12 @@ const createExport = ids => {
             'Content-Type': 'application/json'
         }
     }).then(res => {
-        console.log('Created export: ' + res.data.id + '\n');
+        console.log('Created export: ' + res.data.id + "\n");
+        console.log('Re-run application and supply the export ID.');
         return res.data.id;
     }).catch(err => {
-        console.log('Status code: ' + err)
         console.log('Failed to create export');
+        reject(err);
     })
 };
 
@@ -100,18 +111,16 @@ const getExport = exportID => {
                 console.log('Retrieved export: ' + res.data.download_link + '\n');
                 resolve(res.data.download_link);
             } else {
-                getExport(exportID);
+                reject("Download link currently unavailable; wait a moment and try again.");
             }
         })
     }).catch(err => {
-        console.log('Status code: ' + err)
-        console.log('Failed to retrieve export');
+        console.log('Failed to retrieve export.');
     })
 };
 
 const getTranscripts = url => {
-    console.log('Downloading transcripts...')
-    // url = 'https://www.happyscribe.com/rails/active_storage/blobs/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBMmZodkE9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--c528af207c564b6eb490eeaf6ecaa08c299c41ad/export-1610438102.zip?disposition=attachment';
+    console.log("Downloading transcripts...")
 
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir);
@@ -139,8 +148,10 @@ const getTranscripts = url => {
                     resolve(outputPath);
                 }
             });
-        });
-    })
+        })
+    }).catch(err => {
+        console.log("Unable to download file: " + err);
+    });
 };
 
 const extractTranscripts = filePath => {
@@ -163,10 +174,9 @@ const readTranscripts = () => {
             if (err)
                 reject(err);
             else {
-                console.log("Files " + files)
                 files.forEach(file => {
 
-                    console.log('Reading ' + file + '...');
+                    // console.log('Reading ' + file + '...');
 
                     let data = JSON.parse(stripBom(fs.readFileSync(outputDirJSON + '/' + file, "utf8")));
 
@@ -185,29 +195,24 @@ const readTranscripts = () => {
     })
 }
 
-// 31990abe-249d-43b1-b85e-cb466b9e1759
-// getExport('31990abe-249d-43b1-b85e-cb466b9e1759')
-getTranscriptMetadata(transcriptsUrl)
-    .then(ids => {
-        console.log(ids)
-        return createExport(ids)
-    })
-    .then(exportID => {
-        console.log("Export id: " + exportId)
-        return getExport(exportID)
-    })
-    .then(url => {
-        console.log('URL: ' + url)
-        getTranscripts(url)
-    })
-    .then(filePath => {
-        return extractTranscripts(filePath)
-    })
-    .then(res => {
-        return readTranscripts()
-    })
-    .then(res => {
-        console.log(sentences);
-    });
-
-
+if (process.argv[2] === undefined) {
+    if (!fs.existsSync(fileNameTranscriptIDs)) {
+        getTranscriptIds(transcriptsUrl);
+    } else {
+        createExport(JSON.parse(stripBom(fs.readFileSync(fileNameTranscriptIDs, "utf8"))))
+    }
+} else {
+    getExport(process.argv[2])
+        .then(url => {
+            getTranscripts(url)
+                .then(filePath => {
+                    return extractTranscripts(filePath)
+                        .then(() => {
+                            readTranscripts()
+                                .then(() => {
+                                    console.log(sentences)
+                                })
+                        })
+                })
+        })
+}
