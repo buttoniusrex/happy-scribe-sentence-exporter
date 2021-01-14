@@ -3,13 +3,13 @@ const fs = require('fs');
 const path = require('path');
 const extract = require('extract-zip');
 const stripBom = require('strip-bom');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
-const hostname = 'www.happyscribe.com';
-const port = 443;
 const outputDir = `${__dirname}/output`;
 const outputDirJSON = `${outputDir}/json`;
 const outputFile = 'output.zip'
 const sentences = [];
+let fileNames = [];
 
 let displayTranscriptIDsMessage = true;
 fileNameTranscriptIDs = 'transcript_ids.json'
@@ -53,18 +53,20 @@ const getTranscriptIds = url => {
             let finalIds = [];
 
             // Flatten the array
-            transcriptIds.map((arr, idx) => {
+            transcriptIds.map((arr) => {
                 arr.forEach(e => {
                     finalIds.push(e);
                 })
-            })
+            });
+
             console.log("Completed.\n");
+
             let data = JSON.stringify(finalIds);
             try {
                 fs.writeFileSync(fileNameTranscriptIDs, data);
                 console.log("Re-run application to get export ID.")
             } catch (error) {
-
+                console.log("Failed to write IDs to disk: " + error);
             }
 
             resolve(finalIds);
@@ -93,8 +95,7 @@ const createExport = ids => {
         console.log('Re-run application and supply the export ID.');
         return res.data.id;
     }).catch(err => {
-        console.log('Failed to create export');
-        reject(err);
+        reject('Failed to create export: ' + err);
     })
 };
 
@@ -116,6 +117,7 @@ const getExport = exportID => {
         })
     }).catch(err => {
         console.log('Failed to retrieve export.');
+        return Promise.reject(err);
     })
 };
 
@@ -151,6 +153,7 @@ const getTranscripts = url => {
         })
     }).catch(err => {
         console.log("Unable to download file: " + err);
+        return Promise.reject(err);
     });
 };
 
@@ -161,6 +164,7 @@ const extractTranscripts = filePath => {
         try {
             extract(filePath, { dir: outputDirJSON })
             console.log('Extraction complete: ' + target + "\n");
+            console.log(`Re-run application with arguments 'csv' and the output location.`)
             resolve(true);
         } catch (err) {
             reject(err);
@@ -171,12 +175,26 @@ const extractTranscripts = filePath => {
 const readTranscripts = () => {
     return new Promise((resolve, reject) => {
         fs.readdir(outputDirJSON, (err, files) => {
-            if (err)
+
+            fileNames.push(files);
+
+            fileNames.forEach(fileName => {
+                return fileName.toString().replace(`\.json,`, ',')
+            })
+        
+            console.log("File names: " + fileNames);
+
+            if (err) {
                 reject(err);
+            }
             else {
+                if (!files.length) {
+                    readDir();
+                }
+
                 files.forEach(file => {
 
-                    // console.log('Reading ' + file + '...');
+                    console.log('Reading ' + file + '...');
 
                     let data = JSON.parse(stripBom(fs.readFileSync(outputDirJSON + '/' + file, "utf8")));
 
@@ -188,12 +206,49 @@ const readTranscripts = () => {
                         })
                         sentences.push(sentence);
                     })
+                    // if(sentences !== []) unavailable = false;
+                    console.log(sentences);
                 })
-                resolve(sentences);
+
+                let data = JSON.stringify(sentences);
+                try {
+                    fs.writeFileSync('sentences', data);
+                    console.log("Wrote sentences to disk");
+                    resolve(sentences);
+                } catch (error) {
+
+                }
             }
-        })
+        });
     })
-}
+};
+
+const writeToCsv = () => {
+
+    const filePath = config.filePath;
+
+    fileNames = fileNames.map(fileName => {
+        return fileName.replace(`/.json,`, ',');
+    })
+
+    console.log("File names: " + fileNames);
+
+    const csvWriter = createCsvWriter({
+        path: filePath,
+        header: [
+            {id: 'sentence', title: 'SENTENCE'},
+            {id: 'translation', title: 'TRANSLATION'},
+            {id: 'notes', title: 'NOTES'},
+            {id: 'audio', title: 'AUDIO'},
+        ],
+        append: true,
+        fieldDelimiter: ';',
+    });
+
+    return csvWriter.writeRecords(sentences).then(() => {
+        console.log(`Successfully wrote CSV file to ${filePath}`);
+    }).catch(error => {console.log(error);});
+};
 
 if (process.argv[2] === undefined) {
     if (!fs.existsSync(fileNameTranscriptIDs)) {
@@ -201,18 +256,17 @@ if (process.argv[2] === undefined) {
     } else {
         createExport(JSON.parse(stripBom(fs.readFileSync(fileNameTranscriptIDs, "utf8"))))
     }
+} else if (process.argv[2] === 'csv' && process.argv[3] !== undefined) {
+    readTranscripts()
+        .then((sentences) => {
+            writeToCsv(sentences);
+        })
 } else {
     getExport(process.argv[2])
         .then(url => {
             getTranscripts(url)
                 .then(filePath => {
                     return extractTranscripts(filePath)
-                        .then(() => {
-                            readTranscripts()
-                                .then(() => {
-                                    console.log(sentences)
-                                })
-                        })
                 })
         })
 }
