@@ -10,6 +10,8 @@ const outputDirJSON = `${outputDir}/json`;
 const outputFileZip = 'output.zip'
 const outputFileCSV = 'output.csv'
 
+const APIToken = JSON.parse(stripBom(fs.readFileSync('./config.json', "utf8")));
+
 let displayTranscriptIDsMessage = true;
 fileNameTranscriptIDs = 'transcript_ids.json'
 
@@ -22,7 +24,7 @@ let transcriptIds = [];
 const getTranscriptMetadata = (url) => {
     return axios.get(url, {
         headers: {
-            'Authorization': 'Bearer UuyDDy9FT8CD8IB2uXGQWAtt',
+            'Authorization': APIToken[0]['Authorization']
         }
     })
 };
@@ -86,7 +88,7 @@ const createExport = ids => {
 
     return axios.post(exportsUrl, body, {
         headers: {
-            'Authorization': 'Bearer UuyDDy9FT8CD8IB2uXGQWAtt',
+            'Authorization': APIToken[0]['Authorization'],
             'Content-Type': 'application/json'
         }
     }).then(res => {
@@ -103,7 +105,7 @@ const getExport = exportID => {
 
     return axios.get(exportsUrl + '/' + exportID, {
         headers: {
-            'Authorization': 'Bearer UuyDDy9FT8CD8IB2uXGQWAtt',
+            'Authorization': APIToken[0]['Authorization']
         }
     }).then(res => {
         return new Promise((resolve, reject) => {
@@ -199,7 +201,6 @@ const readTranscripts = () => {
                     })
 
                 })
-                console.log(cardData)
                 resolve(cardData);
             }
         });
