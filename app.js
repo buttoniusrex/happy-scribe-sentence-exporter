@@ -7,7 +7,8 @@ const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 const outputDir = `${__dirname}/output`;
 const outputDirJSON = `${outputDir}/json`;
-const outputFile = 'output.zip'
+const outputFileZip = 'output.zip'
+const outputFileCSV = 'output.csv'
 const sentences = [];
 let fileNames = [];
 
@@ -128,7 +129,7 @@ const getTranscripts = url => {
         fs.mkdirSync(outputDir);
     }
 
-    const outputPath = path.resolve(outputDir, outputFile)
+    const outputPath = path.resolve(outputDir, outputFileZip)
     const writer = fs.createWriteStream(outputPath)
 
     return axios({
@@ -176,25 +177,20 @@ const readTranscripts = () => {
     return new Promise((resolve, reject) => {
         fs.readdir(outputDirJSON, (err, files) => {
 
-            fileNames.push(files);
+            fileNames = files;
 
-            fileNames.forEach(fileName => {
-                return fileName.toString().replace(`\.json,`, ',')
-            })
-        
-            console.log("File names: " + fileNames);
+            // Remove the .json extension from file names so that they match the .mp3 file names
+            fileNames = fileNames.map(fileName => {
+                return fileName.toString().replace(/\.json/, '');
+            });
 
             if (err) {
                 reject(err);
             }
             else {
-                if (!files.length) {
-                    readDir();
-                }
-
                 files.forEach(file => {
 
-                    console.log('Reading ' + file + '...');
+                    // console.log('Reading ' + file + '...');
 
                     let data = JSON.parse(stripBom(fs.readFileSync(outputDirJSON + '/' + file, "utf8")));
 
@@ -206,14 +202,11 @@ const readTranscripts = () => {
                         })
                         sentences.push(sentence);
                     })
-                    // if(sentences !== []) unavailable = false;
-                    console.log(sentences);
                 })
 
                 let data = JSON.stringify(sentences);
                 try {
                     fs.writeFileSync('sentences', data);
-                    console.log("Wrote sentences to disk");
                     resolve(sentences);
                 } catch (error) {
 
@@ -223,18 +216,9 @@ const readTranscripts = () => {
     })
 };
 
-const writeToCsv = () => {
-
-    const filePath = config.filePath;
-
-    fileNames = fileNames.map(fileName => {
-        return fileName.replace(`/.json,`, ',');
-    })
-
-    console.log("File names: " + fileNames);
-
+const writeToCsv = (sentences, destination) => {
     const csvWriter = createCsvWriter({
-        path: filePath,
+        path: destination + outputFileCSV,
         header: [
             {id: 'sentence', title: 'SENTENCE'},
             {id: 'translation', title: 'TRANSLATION'},
@@ -245,11 +229,15 @@ const writeToCsv = () => {
         fieldDelimiter: ';',
     });
 
+    // const cards = 
+
     return csvWriter.writeRecords(sentences).then(() => {
-        console.log(`Successfully wrote CSV file to ${filePath}`);
+        console.log(`Successfully wrote CSV file to ${destination}/${outputFileCSV}`);
     }).catch(error => {console.log(error);});
 };
 
+
+// CMD
 if (process.argv[2] === undefined) {
     if (!fs.existsSync(fileNameTranscriptIDs)) {
         getTranscriptIds(transcriptsUrl);
@@ -259,7 +247,7 @@ if (process.argv[2] === undefined) {
 } else if (process.argv[2] === 'csv' && process.argv[3] !== undefined) {
     readTranscripts()
         .then((sentences) => {
-            writeToCsv(sentences);
+            writeToCsv(sentences, process.argv[3]);
         })
 } else {
     getExport(process.argv[2])
