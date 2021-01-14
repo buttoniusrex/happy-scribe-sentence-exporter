@@ -9,8 +9,6 @@ const outputDir = `${__dirname}/output`;
 const outputDirJSON = `${outputDir}/json`;
 const outputFileZip = 'output.zip'
 const outputFileCSV = 'output.csv'
-const sentences = [];
-let fileNames = [];
 
 let displayTranscriptIDsMessage = true;
 fileNameTranscriptIDs = 'transcript_ids.json'
@@ -177,19 +175,13 @@ const readTranscripts = () => {
     return new Promise((resolve, reject) => {
         fs.readdir(outputDirJSON, (err, files) => {
 
-            fileNames = files;
-
-            // Remove the .json extension from file names so that they match the .mp3 file names
-            fileNames = fileNames.map(fileName => {
-                return fileName.toString().replace(/\.json/, '');
-            });
-
             if (err) {
                 reject(err);
             }
             else {
-                files.forEach(file => {
+                let cardData = [];
 
+                files.forEach(file => {
                     // console.log('Reading ' + file + '...');
 
                     let data = JSON.parse(stripBom(fs.readFileSync(outputDirJSON + '/' + file, "utf8")));
@@ -200,42 +192,37 @@ const readTranscripts = () => {
                         d.words.forEach(w => {
                             sentence += w.text;
                         })
-                        sentences.push(sentence);
+
+                        const audioFileName = file.toString().replace(/\.json/, '');
+                        const item = { 'sentence': sentence, 'translation': '', 'notes': '', 'audio': audioFileName };
+                        cardData.push(item);
                     })
+
                 })
-
-                let data = JSON.stringify(sentences);
-                try {
-                    fs.writeFileSync('sentences', data);
-                    resolve(sentences);
-                } catch (error) {
-
-                }
+                console.log(cardData)
+                resolve(cardData);
             }
         });
     })
 };
 
-const writeToCsv = (sentences, destination) => {
+const writeToCsv = (cardData, destination) => {
     const csvWriter = createCsvWriter({
         path: destination + outputFileCSV,
         header: [
-            {id: 'sentence', title: 'SENTENCE'},
-            {id: 'translation', title: 'TRANSLATION'},
-            {id: 'notes', title: 'NOTES'},
-            {id: 'audio', title: 'AUDIO'},
+            { id: 'sentence', title: 'SENTENCE' },
+            { id: 'translation', title: 'TRANSLATION' },
+            { id: 'notes', title: 'NOTES' },
+            { id: 'audio', title: 'AUDIO' },
         ],
         append: true,
         fieldDelimiter: ';',
     });
 
-    // const cards = 
-
-    return csvWriter.writeRecords(sentences).then(() => {
-        console.log(`Successfully wrote CSV file to ${destination}/${outputFileCSV}`);
-    }).catch(error => {console.log(error);});
+    return csvWriter.writeRecords(cardData).then(() => {
+        console.log('Successfully wrote CSV file to ' + destination + outputFileCSV);
+    }).catch(error => { console.log(error); });
 };
-
 
 // CMD
 if (process.argv[2] === undefined) {
@@ -246,8 +233,8 @@ if (process.argv[2] === undefined) {
     }
 } else if (process.argv[2] === 'csv' && process.argv[3] !== undefined) {
     readTranscripts()
-        .then((sentences) => {
-            writeToCsv(sentences, process.argv[3]);
+        .then((cardData) => {
+            writeToCsv(cardData, process.argv[3]);
         })
 } else {
     getExport(process.argv[2])
