@@ -20,4 +20,6 @@
 
 ## Notes
 
-At present there is an occasional issue with Step 3, where it will fail to locate the download URL. Repeating Step 3 will eventually cause it to work, however this is a workaround for the time being.
+- To re-run with new data, you will need to manually remove the `/output` directory as well as the `transcript_ids.json` file.
+
+- At present there is an occasional issue with Step 3, where it will fail to locate the download URL. Waiting a minute or so, or simply repeating Step 3 until it works, are workarounds for the time being.
