@@ -196,10 +196,9 @@ const readTranscripts = () => {
                         })
 
                         const audioFileName = file.toString().replace(/\.json/, '');
-                        const item = { 'sentence': sentence, 'translation': '', 'notes': '', 'audio': audioFileName };
+                        const item = { 'sentence': sentence, 'translation': '', 'notes': '', 'audio': `[sound:${audioFileName}]` };
                         cardData.push(item);
                     })
-
                 })
                 resolve(cardData);
             }

@@ -1,7 +1,7 @@
 # happyscribe-to-anki
 *Generate Anki cards from Happy Scribe transcripts*
 
-`happyscribe-to-anki` is a command-line utility to export transcript data from (https://www.happyscribe.com/) to Anki-compatible decks containing the following four fields: Sentence, Translation, Notes, Audio.
+`happyscribe-to-anki` is a command-line utility to export transcript data from https://www.happyscribe.com/ for use with Anki decks containing the following four fields: Sentence, Translation, Notes, Audio.
 
 
 ## Pre-requisites
@@ -23,3 +23,11 @@
 - To re-run with new data, you will need to manually remove the `/output` directory as well as the `transcript_ids.json` file.
 
 - At present there is an occasional issue with Step 3, where it will fail to locate the download URL. Waiting a minute or so, or simply repeating Step 3 until it works, are workarounds for the time being.
+
+## Future improvements
+
+- Allow users to specify their own Anki deck format. At present the implementation is quite rigid as it requires the aforemented four fields in your deck.
+
+- Remove the need to supply arguments for Step 5. Instead have the output directory added to `config.json` and test for the existence of files in the `output/json` directory.
+
+- Optionally have the `output/` directory and the `translation_ids.json` files removed once the CSV file has been generated.
