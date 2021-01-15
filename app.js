@@ -21,6 +21,7 @@ let exportsUrl = 'https://www.happyscribe.com/api/v1/exports';
 
 let transcriptIds = [];
 
+// Retrieves a single page metadata containing the IDs for individual transcripts
 const getTranscriptMetadata = (url) => {
     return axios.get(url, {
         headers: {
@@ -29,6 +30,7 @@ const getTranscriptMetadata = (url) => {
     })
 };
 
+// Ensures all metadata pages are obtained and adds the IDs to an array
 const getTranscriptIds = url => {
     return getTranscriptMetadata(url).then(value => {
 
@@ -76,6 +78,7 @@ const getTranscriptIds = url => {
     })
 };
 
+// Create the resource that will provide the download link to the transcript
 const createExport = ids => {
     const body = {
         "export": {
@@ -100,6 +103,7 @@ const createExport = ids => {
     })
 };
 
+// Get the download link to the transcripts
 const getExport = exportID => {
     console.log("Retrieving export...");
 
@@ -122,6 +126,7 @@ const getExport = exportID => {
     })
 };
 
+// Download the transcripts to disk as a .zip file
 const getTranscripts = url => {
     console.log("Downloading transcripts...")
 
@@ -158,6 +163,7 @@ const getTranscripts = url => {
     });
 };
 
+// Unzip the transcripts
 const extractTranscripts = filePath => {
     console.log('Extracting transcripts...')
     const target = outputDir
@@ -173,6 +179,8 @@ const extractTranscripts = filePath => {
     });
 };
 
+// Iterate through the JSON transcripts and piece together the separated words into full sentences.
+// Add the data to an object that will be used to create the CSV.
 const readTranscripts = () => {
     return new Promise((resolve, reject) => {
         fs.readdir(outputDirJSON, (err, files) => {
@@ -206,6 +214,7 @@ const readTranscripts = () => {
     })
 };
 
+// Output the data to a CSV file
 const writeToCsv = (cardData, destination) => {
     const csvWriter = createCsvWriter({
         path: destination + outputFileCSV,
