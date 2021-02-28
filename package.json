@@ -2,9 +2,9 @@
   "name": "happyscribe-to-anki",
   "version": "1.0.0",
   "description": "Utility for creating Anki-compatible CSV files from Happyscribe transcripts",
-  "main": "index.js",
+  "main": "src/app.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node src/app.js"
   },
   "repository": {
     "type": "git",
